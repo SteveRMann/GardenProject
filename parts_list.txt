@@ -1,0 +1,21 @@
+Partlist
+
+Exported from garden.sch at 4/30/2020 11:53 AM
+
+EAGLE Version 9.3.2 Copyright (c) 1988-2019 Autodesk, Inc.
+
+Assembly variant: 
+
+Part            Value                          Device               Package              Library        Sheet
+
+AWAKE           Remove to disable "Awake" LED. PINHD-1X2            1X02                 DC_LOAD_AU     1
+IC1             DS18B20+                       DS18B20+             TO-92                SamacSys_Parts 1
+LED1            Awake                          LED3MM               LED3MM               adafruit       1
+MOISTURE_SENSOR Moisture Sensor                PINHD-1X3/90         1X03/90              pinhead        1
+R1              1K                             R-US_0207/9          0207/9               adafruit       1
+R2              680                            R-US_0207/9          0207/9               adafruit       1
+R3              4K7                            R-US_0207/9          0207/9               adafruit       1
+SHIELD1         WEMOS-D1-MINI-SHIELD           WEMOS-D1-MINI-SHIELD WEMOS-D1-MINI-SHIELD diy-modules    1
+SLEEP           Remove to Disable Sleep.       PINHD-1X2            1X02                 DC_LOAD_AU     1
+SOLAR           From Solar Regulator           PINHD-1X2/90         1X02/90              DC_LOAD_AU     1
+T1              2N2222                         2N2222               TO92-EBC-OVAL        adafruit       1
