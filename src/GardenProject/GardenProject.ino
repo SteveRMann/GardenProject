@@ -53,7 +53,7 @@
 
 
 // ****************************** Globals  ******************************
-#define NODENAME "garden2"
+#define NODENAME "garden"
 
 #define hostPrefix NODENAME     // For setupWiFi()
 char macBuffer[24];             // Holds the last three digits of the MAC, in hex.
@@ -64,7 +64,7 @@ const char *temperatureTopic = NODENAME "/temperature";
 const char *moistureTopic = NODENAME "/moisture";
 const char *sensorsTopic = NODENAME "/sensors";
 const char *rssiTopic = NODENAME "/rssi";
-const char *connectName =  NODENAME "garden1";            //Must be unique on the network
+const char *connectName =  NODENAME "gardenx";            //Must be unique on the network
 const int mqttPort = 1883;
 
 int sleepSeconds = 30;
@@ -76,7 +76,7 @@ OneWire  ds(D4);                      //Create an instance of the ds18b20 on pin
 
 #define mqttSubscribe                 //We will be subscribing to an MQTT topic
 static const char *mqttSubs[] = {
-  "garden2/sleepTime"
+  sleepTopic
 };
 
 
