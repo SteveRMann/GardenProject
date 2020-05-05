@@ -1,4 +1,4 @@
-#define sketchName "gardenProject.ino, V1.4.1"
+#define sketchName "gardenProject.ino, V1.5"
 /*
 
    IDE:
@@ -31,6 +31,9 @@
      04/30/20 - Added code to turn sensor transistor on/off..
    --Version 1.4.1 --
      05/01/20 - Added code to send RSSI over MQTT
+   --Version 1.5 --
+     05/05/20 - Subscribe to sleepTime to control the sleep time..
+              - changed WiFi tab to setupWiFi
 
 
 
@@ -45,29 +48,38 @@
 #include <PubSubClient.h>       // connect to a MQTT broker and publish/subscribe messages in topics.
 
 #ifndef Kaywinnet
-#include "D:\River Documents\Arduino\libraries\kaywinnet.h"
+#include "D:\River Documents\Arduino\libraries\Kaywinnet.h"  // WiFi credentials
 #endif
 
-// ****************************** Globals  ******************************
-//#define my_ssid "Kaywinnet"
-//#define my_password "806194edb8"
-#define NODENAME "garden"
 
-const char *timeTopic = NODENAME "/time";
+// ****************************** Globals  ******************************
+#define NODENAME "garden2"
+
+#define hostPrefix NODENAME     // For setupWiFi()
+char macBuffer[24];             // Holds the last three digits of the MAC, in hex.
+
+//const char *timeTopic = "system/time";
+const char *sleepTopic = NODENAME "/sleepTime";
 const char *temperatureTopic = NODENAME "/temperature";
 const char *moistureTopic = NODENAME "/moisture";
 const char *sensorsTopic = NODENAME "/sensors";
 const char *rssiTopic = NODENAME "/rssi";
 const char *connectName =  NODENAME "garden1";            //Must be unique on the network
-//const char *mqtt_Server = "192.168.1.124";
 const int mqttPort = 1883;
 
-const int sleepSeconds = 30;
-const int pubsubDelay = 20;
+int sleepSeconds = 30;
+const int pubsubDelay = 20;           //Time between publishes
+long rssi;                            //Used in the WiFi tab
 
-long rssi;                      // Used in the WiFi tab
 
-OneWire  ds(D4);                // Define an instance of the ds18b20 on pin D4
+OneWire  ds(D4);                      //Create an instance of the ds18b20 on pin D4
+
+#define mqttSubscribe                 //We will be subscribing to an MQTT topic
+static const char *mqttSubs[] = {
+  "garden2/sleepTime"
+};
+
+
 
 // Declare an object of class WiFiClient, which allows to establish a connection to a specific IP and port
 // Declare an object of class PubSubClient, which receives as input of the constructor the previously defined WiFiClient.
@@ -98,19 +110,27 @@ void setup(void)
   Serial.println(sensorsTopic);
   Serial.print(F("rssiTopic= "));
   Serial.println(rssiTopic);
+  //  Serial.print(F("timeTopic= "));
+  //  Serial.println(timeTopic);
+  Serial.print(F("sleepTopic= "));
+  Serial.println(sleepTopic);
   Serial.println();
 
   pinMode(D2, OUTPUT);
   digitalWrite(D2, HIGH);          // Turn on LED- We're awake.
 
-  Serial.println("Calling wifiConnect()");
-  wifiConnect();
+  //Serial.println("Calling wifiConnect()");
+  //wifiConnect();
+  setup_wifi();
 
 
   // Call the PubSubClent setServer method, passing the broker address and the port.
   client.setServer(mqtt_server, mqttPort);
   mqttConnect();
 
+#ifdef mqttSubscribe
+  client.setCallback(callback);
+#endif
 
   float fahrenheit = readDS();
   Serial.print(F("  Temperature = "));
@@ -153,22 +173,28 @@ void setup(void)
   bool rs = client.publish(rssiTopic, temp);            //Publish the rssi value
   delay(pubsubDelay);                                   //Publish never completes without a delay
 
-  if (rs == true) {
-    // ---------- Sleep ----------
-    // Connect D0 to RST to wake up
-    pinMode(D0, WAKEUP_PULLUP);
-    digitalWrite(D2, LOW);                                          // Turn off LED- We're sleeping.
-    Serial.print(F("Sleeping, "));
-    Serial.print(sleepSeconds);
-    Serial.println(F(" seconds."));
-    ESP.deepSleep(sleepSeconds * 1000000);
+
+  //Ensure we've sent & received everything before sleeping
+  //This adds 1-second to the wake time.
+  for (int i = 0; i < 5; i++)
+  {
+    client.loop();
+    delay(100);
   }
-  else {
-    // Try again
-    Serial.println(F("*()*()*()*()*()*()*()*()*()*"));
-    Serial.println(F("rs is false, publish failed."));
-  }
+
+
+
+
+  // ---------- Sleep ----------
+  // Connect D0 to RST to wake up
+  pinMode(D0, WAKEUP_PULLUP);
+  digitalWrite(D2, LOW);                                          // Turn off LED- We're sleeping.
+  Serial.print(F("Sleeping, "));
+  Serial.print(sleepSeconds);
+  Serial.println(F(" seconds."));
+  ESP.deepSleep(sleepSeconds * 1000000);
 }
+
 
 
 // ==================================== loop() ====================================

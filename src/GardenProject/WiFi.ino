@@ -10,7 +10,8 @@ void wifiConnect() {
 
   Serial.print(F("Connecting to "));
   Serial.println(my_ssid);
-  WiFi.enableInsecureWEP();                        // added for esp8288 v2.5.2 library.
+  WiFi.persistent( false );             // Disable WiFi persistence.  The ESP8266 will not save WiFi settings in flash memory.
+  WiFi.enableInsecureWEP();             // added for esp8288 v2.5.2 library.
   WiFi.begin(my_ssid, my_password);
 
   while (WiFi.status() != WL_CONNECTED) {
