@@ -1,4 +1,4 @@
-#define sketchName "gardenProject.ino, V1.5"
+#define sketchName "gardenProject.ino, V1.6"
 /*
 
    IDE:
@@ -35,7 +35,11 @@
      05/05/20 - Subscribe to sleepTime to control the sleep time..
               - changed WiFi tab to setupWiFi
    --Version 1.6 --
-     05/06/20 - Added ota
+     05/06/20 - Added ota. Here's how to use it.
+                1. From an MQTT program, send "true" to otaTopic, QOS=0, Retained=true
+                2. Wait for sleepSeconds to expire, guaranteeing that the ESP woke up and received the retained message to go nto the OTA mode.
+                3. From the IDE, upload the sketch.  
+                4. From an MQTT program, send "false" to otaTopic, QOS=0, Retained=true
 
 
 
@@ -117,8 +121,6 @@ void setup(void)
   Serial.println(sensorsTopic);
   Serial.print(F("rssiTopic= "));
   Serial.println(rssiTopic);
-  //  Serial.print(F("timeTopic= "));
-  //  Serial.println(timeTopic);
   Serial.print(F("sleepTopic= "));
   Serial.println(sleepTopic);
   Serial.println();
@@ -127,8 +129,6 @@ void setup(void)
   pinMode(D2, OUTPUT);
   digitalWrite(D2, HIGH);          // Turn on LED- We're awake.
 
-  //Serial.println("Calling wifiConnect()");
-  //wifiConnect();
   setup_wifi();
   start_OTA();
 
@@ -207,5 +207,12 @@ void setup(void)
 
 // ==================================== loop() ====================================
 void loop(void) {
+
   ArduinoOTA.handle();
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\nUpload Ended");
+    otaFlag = false;
+  });
+
+
 }

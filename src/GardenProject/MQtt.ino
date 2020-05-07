@@ -59,7 +59,7 @@ void callback(String topic, byte * message, unsigned int length) {
 
   //  if (topic == timeTopic) {
   //    //Time from the Node Red is always 8 characters.
-  //    //For example: "12: 34: 56" or "01: 05: 67"
+  //    //For example: "12:34:56" or "01:05:67"
   //  }
 
   if (topic == sleepTopic) {
@@ -71,10 +71,11 @@ void callback(String topic, byte * message, unsigned int length) {
   }
 
   if (topic == otaTopic) {
-    otaFlag = true;
+    otaFlag = false;
+    if (messageString == "TRUE") {
+      otaFlag = true;
+    }
   }
-
-
 
 }           //callback
 
