@@ -57,10 +57,10 @@ void callback(String topic, byte * message, unsigned int length) {
   Serial.println();
 
 
-//  if (topic == timeTopic) {
-//    //Time from the Node Red is always 8 characters.
-//    //For example: "12: 34: 56" or "01: 05: 67"
-//  }
+  //  if (topic == timeTopic) {
+  //    //Time from the Node Red is always 8 characters.
+  //    //For example: "12: 34: 56" or "01: 05: 67"
+  //  }
 
   if (topic == sleepTopic) {
     //Time in ms to sleep
@@ -68,8 +68,12 @@ void callback(String topic, byte * message, unsigned int length) {
     Serial.print(F("New sleepTime= "));
     Serial.print(sleepSeconds);
     Serial.println(F(" seconds"));
-
   }
+
+  if (topic == otaTopic) {
+    otaFlag = true;
+  }
+
 
 
 }           //callback

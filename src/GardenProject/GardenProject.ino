@@ -34,6 +34,9 @@
    --Version 1.5 --
      05/05/20 - Subscribe to sleepTime to control the sleep time..
               - changed WiFi tab to setupWiFi
+   --Version 1.6 --
+     05/06/20 - Added ota
+
 
 
 
@@ -46,6 +49,7 @@
 #include <OneWire.h>            // Driver for DS18X Temperature Sensors.
 #include <ESP8266WiFi.h>        // Connect (and reconnect) an ESP8266 to the a WiFi network.
 #include <PubSubClient.h>       // connect to a MQTT broker and publish/subscribe messages in topics.
+#include <ArduinoOTA.h>
 
 #ifndef Kaywinnet
 #include "D:\River Documents\Arduino\libraries\Kaywinnet.h"  // WiFi credentials
@@ -53,7 +57,7 @@
 
 
 // ****************************** Globals  ******************************
-#define NODENAME "garden"
+#define NODENAME "garden2"
 
 #define hostPrefix NODENAME     // For setupWiFi()
 char macBuffer[24];             // Holds the last three digits of the MAC, in hex.
@@ -64,9 +68,11 @@ const char *temperatureTopic = NODENAME "/temperature";
 const char *moistureTopic = NODENAME "/moisture";
 const char *sensorsTopic = NODENAME "/sensors";
 const char *rssiTopic = NODENAME "/rssi";
+const char *otaTopic = NODENAME "/ota";                   //Sets a flag to ut the ESP into OTA mode.
 const char *connectName =  NODENAME "gardenx";            //Must be unique on the network
 const int mqttPort = 1883;
 
+bool otaFlag = false;
 int sleepSeconds = 30;
 const int pubsubDelay = 20;           //Time between publishes
 long rssi;                            //Used in the WiFi tab
@@ -76,7 +82,8 @@ OneWire  ds(D4);                      //Create an instance of the ds18b20 on pin
 
 #define mqttSubscribe                 //We will be subscribing to an MQTT topic
 static const char *mqttSubs[] = {
-  sleepTopic
+  sleepTopic,
+  otaTopic
 };
 
 
@@ -116,12 +123,14 @@ void setup(void)
   Serial.println(sleepTopic);
   Serial.println();
 
+  otaFlag = false;
   pinMode(D2, OUTPUT);
   digitalWrite(D2, HIGH);          // Turn on LED- We're awake.
 
   //Serial.println("Calling wifiConnect()");
   //wifiConnect();
   setup_wifi();
+  start_OTA();
 
 
   // Call the PubSubClent setServer method, passing the broker address and the port.
@@ -184,18 +193,19 @@ void setup(void)
 
 
 
-
-  // ---------- Sleep ----------
-  // Connect D0 to RST to wake up
-  pinMode(D0, WAKEUP_PULLUP);
-  digitalWrite(D2, LOW);                                          // Turn off LED- We're sleeping.
-  Serial.print(F("Sleeping, "));
-  Serial.print(sleepSeconds);
-  Serial.println(F(" seconds."));
-  ESP.deepSleep(sleepSeconds * 1000000);
+  if (!otaFlag) {                                       //If the otaFlag is set, then drop into loop to wait for the ota upload.
+    // ---------- Sleep ----------
+    // Connect D0 to RST to wake up
+    pinMode(D0, WAKEUP_PULLUP);
+    digitalWrite(D2, LOW);                                          // Turn off LED- We're sleeping.
+    Serial.print(F("Sleeping, "));
+    Serial.print(sleepSeconds);
+    Serial.println(F(" seconds."));
+    ESP.deepSleep(sleepSeconds * 1000000);
+  }
 }
 
-
-
 // ==================================== loop() ====================================
-void loop(void) {}
+void loop(void) {
+  ArduinoOTA.handle();
+}
