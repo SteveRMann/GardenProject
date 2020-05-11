@@ -40,6 +40,10 @@ void setup_wifi() {
   Serial.print(F("IP address: "));
   Serial.println(WiFi.localIP());
 
+  rssi = WiFi.RSSI();
+  Serial.print("Signal Strength (RSSI):");
+  Serial.println(rssi);
+
 
   // Get the last three numbers of the mac address.
   // "4C:11:AE:0D:83:86" becomes "0D8386" in macBuffer.

@@ -1,6 +1,6 @@
-#define sketchName "gardenProject.ino, V1.6"
-/*
+#define sketchName "gardenProject.ino, V2.0"
 
+/*
    IDE:
      Board: Lolin(Wemos) D1 R2 & Mini
 
@@ -36,10 +36,19 @@
               - changed WiFi tab to setupWiFi
    --Version 1.6 --
      05/06/20 - Added ota. Here's how to use it.
-                1. From an MQTT program, send "true" to otaTopic, QOS=0, Retained=true
-                2. Wait for sleepSeconds to expire, guaranteeing that the ESP woke up and received the retained message to go nto the OTA mode.
-                3. From the IDE, upload the sketch.  
-                4. From an MQTT program, send "false" to otaTopic, QOS=0, Retained=true
+                1. From an MQTT program, set sleepTime to one minute.
+                2. Send "true" to otaTopic, QOS=0, Retained=true
+                3. Wait for sleepTme to expire, guaranteeing that the ESP woke up and
+                   received the retained message to go into the OTA mode.
+                4. From the IDE, upload the sketch.
+                5. From an MQTT program, send "false" to otaTopic, QOS=0, Retained=true
+                   Note: the "false" needs to be sent to otaTopic before the upload finishes
+                6. Set sleepTime back to the desired sleep time.
+   --Version 1.7 --
+     05/07/20 - Added topic tCorrect to send a temperature correction value
+   --Version 2.0 --
+     05/11/20 - Changed topic sensors to status
+                Added IP and RSSI to the status.
 
 
 
@@ -61,33 +70,30 @@
 
 
 // ****************************** Globals  ******************************
-#define NODENAME "garden2"
+#define NODENAME "garden"      // Must be unique on the net.
 
 #define hostPrefix NODENAME     // For setupWiFi()
 char macBuffer[24];             // Holds the last three digits of the MAC, in hex.
 
-//const char *timeTopic = "system/time";
-const char *sleepTopic = NODENAME "/sleepTime";
-const char *temperatureTopic = NODENAME "/temperature";
-const char *moistureTopic = NODENAME "/moisture";
-const char *sensorsTopic = NODENAME "/sensors";
-const char *rssiTopic = NODENAME "/rssi";
+const char *statusTopic = NODENAME "/status";             //Sends the temperature, moisture, IP and RSSI in one payload.
 const char *otaTopic = NODENAME "/ota";                   //Sets a flag to ut the ESP into OTA mode.
-const char *connectName =  NODENAME "gardenx";            //Must be unique on the network
+const char *cmdTopic = NODENAME "/cmd";                   //Sends a command string: sleepTime, correction, ota (0 or 1)
+const char *connectName =  NODENAME "garden";             //Must be unique on the network
 const int mqttPort = 1883;
 
 bool otaFlag = false;
-int sleepSeconds = 30;
+int sleepSeconds = 120;
 const int pubsubDelay = 20;           //Time between publishes
 long rssi;                            //Used in the WiFi tab
+float tCorrection = 0.0;              //Temperature correction.
+char rssi_string[50];                 //RSSI in char array
 
 
 OneWire  ds(D4);                      //Create an instance of the ds18b20 on pin D4
 
-#define mqttSubscribe                 //We will be subscribing to an MQTT topic
+
 static const char *mqttSubs[] = {
-  sleepTopic,
-  otaTopic
+  cmdTopic
 };
 
 
@@ -113,16 +119,8 @@ void setup(void)
   Serial.println();
   Serial.println(sketchName);
   Serial.println();
-  Serial.print(F("temperatureTopic= "));
-  Serial.println(temperatureTopic);
-  Serial.print(F("moistureTopic= "));
-  Serial.println(moistureTopic);
-  Serial.print(F("sensorsTopic= "));
-  Serial.println(sensorsTopic);
-  Serial.print(F("rssiTopic= "));
-  Serial.println(rssiTopic);
-  Serial.print(F("sleepTopic= "));
-  Serial.println(sleepTopic);
+  Serial.print(F("statusTopic= "));
+  Serial.println(statusTopic);
   Serial.println();
 
   otaFlag = false;
@@ -136,60 +134,58 @@ void setup(void)
   // Call the PubSubClent setServer method, passing the broker address and the port.
   client.setServer(mqtt_server, mqttPort);
   mqttConnect();
-
-#ifdef mqttSubscribe
   client.setCallback(callback);
-#endif
-
-  float fahrenheit = readDS();
-  Serial.print(F("  Temperature = "));
-  Serial.print(fahrenheit);
-  Serial.println(F(" Fahrenheit"));
-  Serial.println();
-  client.publish(temperatureTopic, String(fahrenheit).c_str());   // Publish temperature on temperature_topic
-  delay(pubsubDelay);                                             // Publish never completes without a delay
-
-  int moistureVal = analogRead(0);                                // Read the moisture sensor
-  client.publish(moistureTopic, String(moistureVal).c_str());     // Publish moisture value on moisture_topic
-  delay(pubsubDelay);                                             // Publish never completes without a delay
-
-  digitalWrite(D5, LOW);                                          // Turn off moisture reading
-
-  String temperatureString = String(fahrenheit).c_str();
-  String moistureString = String(moistureVal).c_str();
-
-  Serial.println();
-  Serial.print(F("temperatureString= "));
-  Serial.println(temperatureString);
-  Serial.print(F("moistureString= "));
-  Serial.println(moistureString);
-  Serial.println();
-
-
-  // Send both sensors under one topic to sensorsTopic
-  String gardenSensors = temperatureString + "," + moistureString;
-  Serial.print(F("gardenSensors= \""));
-  Serial.print(gardenSensors);
-  Serial.println(F("\""));                                                 // Cloing quote.
-
-  client.publish(sensorsTopic, (char*) gardenSensors.c_str());             // Publish both sensors
-  delay(pubsubDelay);                                                      // Publish never completes without a delay
-
-  String temp_str;
-  char temp[50];
-  temp_str = String(rssi);                              //convert the rssi to a String
-  temp_str.toCharArray(temp, temp_str.length() + 1);    //packaging up the data to publish to mqtt whoa...
-  bool rs = client.publish(rssiTopic, temp);            //Publish the rssi value
-  delay(pubsubDelay);                                   //Publish never completes without a delay
 
 
   //Ensure we've sent & received everything before sleeping
   //This adds 1-second to the wake time.
   for (int i = 0; i < 5; i++)
   {
-    client.loop();
+    client.loop();                                              // Normally at the top of the loop.
     delay(100);
   }
+
+  
+  String rssiTemp;                                              //RSSI in String
+  rssiTemp = String(rssi);                                      //convert the rssi to a String
+  rssiTemp.toCharArray(rssi_string, rssiTemp.length() + 1);     //packaging up the data to publish to mqtt whoa...
+
+  float fahrenheit = readDS();
+  fahrenheit = fahrenheit + tCorrection;
+
+  int moistureVal = analogRead(0);                              //Read the moisture sensor
+
+  String temperatureString = String(fahrenheit).c_str();
+  String moistureString = String(moistureVal).c_str();
+
+  Serial.println();
+  Serial.print(F("moistureString= "));
+  Serial.println(moistureString);
+  Serial.print(F("rssi_string= "));
+  Serial.println(rssi_string);
+  Serial.print(F("Temperature = "));
+  Serial.print(fahrenheit);
+  Serial.println(F(" Fahrenheit"));
+  Serial.println();
+  Serial.print(sleepSeconds);
+  Serial.println(F(" seconds"));
+
+
+
+  // Send data to statusTopic
+  String status = temperatureString + "," + moistureString + "," + WiFi.localIP().toString() + "," + rssi_string + "," + String(sleepSeconds);
+  Serial.print(F("status= \""));
+  Serial.println(F("Temp, moisture, IP, rssi, sleep"));
+  Serial.print(F("status= \""));
+  Serial.print(status);
+  Serial.println(F("\""));                                                 // Cloing quote.
+
+  client.publish(statusTopic, (char*) status.c_str());                     // Publish all data
+  delay(pubsubDelay);                                                      // Publish never completes without a delay
+
+
+
+
 
 
 
@@ -203,6 +199,7 @@ void setup(void)
     Serial.println(F(" seconds."));
     ESP.deepSleep(sleepSeconds * 1000000);
   }
+  Serial.println(F("Dropping into loop()"));
 }
 
 // ==================================== loop() ====================================

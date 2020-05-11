@@ -14,7 +14,8 @@ void mqttConnect() {
       delay(5000);
     }
 
-#ifdef mqttSubscribe
+
+
     char subTopic[40];
     byte numberOfSubs = (sizeof(mqttSubs) / sizeof(mqttSubs[0]));
     Serial.print(numberOfSubs);
@@ -24,15 +25,13 @@ void mqttConnect() {
       Serial.print(F("Subscribing to "));
       Serial.println(subTopic);
       client.subscribe(subTopic);
+      delay(pubsubDelay);
     }
-
-#endif
-
   }
 }
 
 
-#ifdef mqttSubscribe
+
 // **********************************  mqtt callback *************************************
 // This function is executed when some device publishes a message to a topic that this ESP8266 is subscribed to.
 //
@@ -57,19 +56,6 @@ void callback(String topic, byte * message, unsigned int length) {
   Serial.println();
 
 
-  //  if (topic == timeTopic) {
-  //    //Time from the Node Red is always 8 characters.
-  //    //For example: "12:34:56" or "01:05:67"
-  //  }
-
-  if (topic == sleepTopic) {
-    //Time in ms to sleep
-    sleepSeconds = messageString.toInt();
-    Serial.print(F("New sleepTime= "));
-    Serial.print(sleepSeconds);
-    Serial.println(F(" seconds"));
-  }
-
   if (topic == otaTopic) {
     otaFlag = false;
     if (messageString == "TRUE") {
@@ -77,6 +63,30 @@ void callback(String topic, byte * message, unsigned int length) {
     }
   }
 
-}           //callback
+  if (topic == cmdTopic) {
+    char buf[24];   
+    strcpy(buf, messageString.c_str());
 
-#endif
+    // Tokenize
+    char *tmpbuf;
+    tmpbuf = strtok(buf, ",");
+    sleepSeconds = atoi(tmpbuf);                       //sleepSeconds
+    Serial.print(F("New sleepTime= "));
+    Serial.print(sleepSeconds);
+    Serial.println(F(" seconds"));
+
+    tmpbuf = strtok(NULL, ",");
+    tCorrection = atoi(tmpbuf);                        //tCorrection
+    Serial.print(F("New Temperature Correction= "));
+    Serial.print(tCorrection);
+    Serial.println(F(" degrees"));
+
+    tmpbuf = strtok(NULL, ",");
+    int otaVal = atoi(tmpbuf);                         //OTA Flag
+    otaFlag = false;
+    if (otaVal == 1) {
+      otaFlag = true;
+      Serial.println(F("OTA Mode"));
+    }
+  }
+} //callback
