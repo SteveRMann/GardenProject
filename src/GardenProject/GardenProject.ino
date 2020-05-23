@@ -1,4 +1,4 @@
-#define sketchName "gardenProject.ino, V2.1"
+#define sketchName "gardenProject.ino, V2.2"
 
 /*
    IDE:
@@ -21,7 +21,12 @@
 
 
 // ****************************** Globals  ******************************
-#define NODENAME "garden"      // Must be unique on the net.
+#define NODENAME "garden"      //Must be unique on the net.
+
+//Probe Calibration
+int dry = 850;                  //Dry sensor
+int wet = 390;                  //Wet sensor
+
 
 #define hostPrefix NODENAME     // For setupWiFi()
 char macBuffer[24];             // Holds the last three digits of the MAC, in hex.
@@ -92,7 +97,7 @@ void setup(void)
   //This adds 1-second to the wake time.
   for (int i = 0; i < 5; i++)
   {
-    client.loop();                                              // Normally at the top of the loop.
+    client.loop();                 // Normally at the top of the loop.
     delay(100);
   }
 
@@ -102,17 +107,29 @@ void setup(void)
   rssiTemp.toCharArray(rssi_string, rssiTemp.length() + 1);     //packaging up the data to publish to mqtt whoa...
 
   float fahrenheit = readDS();
+  Serial.print(F("temperatureRaw= "));
+  Serial.println(fahrenheit);
+  Serial.print(F("tCorrection= "));
+  Serial.print(tCorrection);
   fahrenheit = fahrenheit + tCorrection;
 
   int moistureVal = analogRead(0);                              //Read the moisture sensor
+  Serial.print(F("\n\nraw= "));
+  Serial.println(moistureVal);
+  int moistureValPct = map(moistureVal, wet, dry, 100, 0);
+  Serial.print(F("mapped= "));
+  Serial.print(moistureValPct);
+  Serial.println(F(" % "));
+
 
   String temperatureString = String(fahrenheit).c_str();
-  String moistureString = String(moistureVal).c_str();
-
-  Serial.println();
-  Serial.print(F("moistureString= "));
-  Serial.println(moistureString);
-  Serial.print(F("rssi_string= "));
+  String moistureRawString = String(moistureVal).c_str();
+  String moisturePctString = String(moistureValPct).c_str();
+  Serial.print(F("moistureRawString = "));
+  Serial.println(moistureRawString);
+  Serial.print(F("moisturePctString = "));
+  Serial.println(moisturePctString);
+  Serial.print(F("rssi_string = "));
   Serial.println(rssi_string);
   Serial.print(F("Temperature = "));
   Serial.print(fahrenheit);
@@ -120,13 +137,22 @@ void setup(void)
   Serial.println();
   Serial.print(sleepSeconds);
   Serial.println(F(" seconds"));
+  Serial.print(F("IP = "));
+  Serial.println(WiFi.localIP());
 
 
 
   // Send data to statusTopic
-  String status = temperatureString + "," + moistureString + "," + WiFi.localIP().toString() + "," + rssi_string + "," + String(sleepSeconds) + "," + otaFlag;
-  Serial.print(F("status= \""));
-  Serial.println(F("Temp, moisture, IP, rssi, sleep, OTA"));
+  String status = temperatureString + ", " +
+                  moisturePctString + ", " +
+                  moistureRawString + ", " +
+                  WiFi.localIP().toString() + ", " +
+                  rssi_string + ", " +
+                  String(sleepSeconds) + ", " +
+                  otaFlag;
+
+  Serial.print(F("status = \""));
+  Serial.println(F("Temp, moistureRaw, moisture%, IP, rssi, sleep, OTA"));
   Serial.print(F("status= \""));
   Serial.print(status);
   Serial.println(F("\""));                                                 // Cloing quote.

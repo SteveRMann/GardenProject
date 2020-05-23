@@ -46,5 +46,9 @@
                 Added IP and RSSI to the status.
 v  --Version 2.1 --
      05/11/20 - Added OTA flag to the status.
+   --Version 2.2 --
+     05/14/20 - Added moisture mapping to percentage.
+                Data stream now:
+                temperature, moisture%, moisture Raw, IP, rssi, sleepSeconds, otaFlag
 
 */
